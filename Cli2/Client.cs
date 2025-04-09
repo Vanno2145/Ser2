@@ -1,44 +1,65 @@
-﻿// Client.cs
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.IO;
+using System.Threading;
 
-class CurrencyClient
+class Server
 {
-    private const string serverIP = "127.0.0.1";
-    private const int port = 9001;
-
-    public void Start()
+    private static TcpListener listener;
+    private static Dictionary<string, decimal> partsPriceList = new()
     {
-        using TcpClient client = new TcpClient(serverIP, port);
+        { "процессор", 25000 },
+        { "видеокарта", 50000 },
+        { "материнская плата", 15000 },
+        { "оперативная память", 8000 },
+        { "жесткий диск", 6000 },
+        { "ssd", 10000 },
+        { "блок питания", 7000 },
+        { "корпус", 4000 }
+    };
+
+    static void Main()
+    {
+        listener = new TcpListener(IPAddress.Any, 5001);
+        listener.Start();
+        Console.WriteLine("Сервер запущен и ожидает подключения клиентов...");
+
+        while (true)
+        {
+            TcpClient client = listener.AcceptTcpClient();
+            Thread thread = new(() => HandleClient(client));
+            thread.Start();
+        }
+    }
+
+    static void HandleClient(TcpClient client)
+    {
         using NetworkStream stream = client.GetStream();
         using StreamReader reader = new(stream, Encoding.UTF8);
         using StreamWriter writer = new(stream, Encoding.UTF8) { AutoFlush = true };
 
-        Console.WriteLine("=== Клиент: Курс валют ===");
-        Console.WriteLine("Введите пару валют через пробел (например: USD EURO), или 'exit' для выхода.");
+        writer.WriteLine("Добро пожаловать в магазин комплектующих. Введите название запчасти:");
 
         while (true)
         {
-            Console.Write(">> ");
-            string? input = Console.ReadLine()?.Trim();
+            string? partName = reader.ReadLine();
+            if (partName == null || partName.ToLower() == "выход") break;
 
-            if (input == null || input.ToLower() == "exit") break;
+            if (partsPriceList.TryGetValue(partName.ToLower(), out decimal price))
+            {
+                writer.WriteLine($"Цена на '{partName}': {price} руб.");
+            }
+            else
+            {
+                writer.WriteLine("Запчасть не найдена. Попробуйте снова.");
+            }
 
-            writer.WriteLine(input);
-            string response = reader.ReadLine() ?? "Нет ответа от сервера.";
-            Console.WriteLine("Ответ: " + response);
+            writer.WriteLine("Введите новую запчасть или напишите 'выход' для завершения:");
         }
-    }
-}
 
-// Program.cs
-class Program
-{
-    static void Main()
-    {
-        CurrencyClient client = new CurrencyClient();
-        client.Start();
+        client.Close();
     }
 }
