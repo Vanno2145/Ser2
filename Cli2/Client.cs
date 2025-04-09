@@ -1,65 +1,33 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading;
 
-class Server
+class Client
 {
-    private static TcpListener listener;
-    private static Dictionary<string, decimal> partsPriceList = new()
-    {
-        { "процессор", 25000 },
-        { "видеокарта", 50000 },
-        { "материнская плата", 15000 },
-        { "оперативная память", 8000 },
-        { "жесткий диск", 6000 },
-        { "ssd", 10000 },
-        { "блок питания", 7000 },
-        { "корпус", 4000 }
-    };
-
     static void Main()
     {
-        listener = new TcpListener(IPAddress.Any, 5001);
-        listener.Start();
-        Console.WriteLine("Сервер запущен и ожидает подключения клиентов...");
-
-        while (true)
-        {
-            TcpClient client = listener.AcceptTcpClient();
-            Thread thread = new(() => HandleClient(client));
-            thread.Start();
-        }
-    }
-
-    static void HandleClient(TcpClient client)
-    {
+        TcpClient client = new("127.0.0.1", 5001);
         using NetworkStream stream = client.GetStream();
         using StreamReader reader = new(stream, Encoding.UTF8);
         using StreamWriter writer = new(stream, Encoding.UTF8) { AutoFlush = true };
 
-        writer.WriteLine("Добро пожаловать в магазин комплектующих. Введите название запчасти:");
+        Console.WriteLine(reader.ReadLine());
 
         while (true)
         {
-            string? partName = reader.ReadLine();
-            if (partName == null || partName.ToLower() == "выход") break;
+            Console.Write("Введите запчасть: ");
+            string? input = Console.ReadLine();
+            if (string.IsNullOrEmpty(input)) continue;
 
-            if (partsPriceList.TryGetValue(partName.ToLower(), out decimal price))
-            {
-                writer.WriteLine($"Цена на '{partName}': {price} руб.");
-            }
-            else
-            {
-                writer.WriteLine("Запчасть не найдена. Попробуйте снова.");
-            }
+            writer.WriteLine(input);
+            string? response = reader.ReadLine();
+            Console.WriteLine(response);
 
-            writer.WriteLine("Введите новую запчасть или напишите 'выход' для завершения:");
+            string? nextPrompt = reader.ReadLine();
+            if (nextPrompt != null) Console.WriteLine(nextPrompt);
+
+            if (input.ToLower() == "выход") break;
         }
-
-        client.Close();
     }
 }
